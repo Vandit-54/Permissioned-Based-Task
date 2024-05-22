@@ -1,5 +1,5 @@
 import { ApiError } from "./apiError";
-import { HttpStatusCode } from "../enum";
+import { HttpStatusCode } from "@enum";
 import { Response,NextFunction } from "express";
 
 export const customErrorHandler = (error:any, res:Response,next: NextFunction) => {

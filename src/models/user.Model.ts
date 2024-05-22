@@ -1,6 +1,6 @@
 import mongoose, {  Schema } from "mongoose";
-import { IUser } from "../interfaces";
-import { passwordHelper, generateAccessToken } from "../utils";
+import { IUser } from "@interfaces";
+import { passwordHelper, generateAccessToken } from "@utils";
 
 const userSchema: Schema<IUser> = new Schema({
 
@@ -26,7 +26,7 @@ const userSchema: Schema<IUser> = new Schema({
         type: String
     },
     role: {
-        type: String,
+        type: Schema.Types.ObjectId,
         required: true
     },
     isActive: {

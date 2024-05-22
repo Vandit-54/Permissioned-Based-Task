@@ -11,5 +11,6 @@ export const Message = {
     VALIDATION_ERROR: "Validation Failed",
     DUPLICATION_ERROR: "Resource Already Exists in the System",
     NOT_FOUND: "Resource not found",
-    PASSWORD_VALIDATION: "Invalid password"
+    PASSWORD_VALIDATION: "Invalid password",
+    SUCCESS: "Resource fetched successfully!!!"
 };

@@ -1,4 +1,4 @@
-// import mongoose from "mongoose";
+import mongoose from "mongoose";
 
 export interface IUser{
     name:string;
@@ -6,7 +6,7 @@ export interface IUser{
     password?:string;
     phoneNumber:number;
     address?:string;
-    role?:string;
+    role?:mongoose.Types.ObjectId;
     isActive?:boolean;
     isDeleted?:boolean;
     isBlocked?:boolean;

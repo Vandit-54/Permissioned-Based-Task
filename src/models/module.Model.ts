@@ -1,5 +1,5 @@
 import mongoose, {Schema} from "mongoose";
-import { IModule } from "../interfaces";
+import { IModule } from "@interfaces";
 
 const moduleSchema :Schema<IModule> = new Schema({
 
@@ -22,4 +22,4 @@ const moduleSchema :Schema<IModule> = new Schema({
 
 })
 
-export const Module = mongoose.model<IModule>('ModuleSchema',moduleSchema)
+export const Module = mongoose.model<IModule>('Module',moduleSchema)

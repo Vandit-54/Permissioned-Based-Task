@@ -1,15 +1,30 @@
 {
-    "compilerOptions": {
-      "module": "commonjs",
-      "esModuleInterop": true,
-      "target": "es6",
-      "moduleResolution": "node",
-      "sourceMap": true,
-      "outDir": "dist",
-      "emitDecoratorMetadata": true,
-      "experimentalDecorators": true
-    },
-    "lib": ["es2015"],
-    "include": ["src/**/*.ts", "src/config/globals/**/*.d.ts"]
-  }
-  
+  "ts-node": {
+    "require": ["tsconfig-paths/register"]
+  },
+  "compilerOptions": {
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "target": "es6",
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "outDir": "dist",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "baseUrl": "./",
+    "paths": {
+      "@config": ["src/config/index.ts"],
+      "@constant": ["src/constants/index.ts"],
+      "@controllers": ["src/controllers/index.ts"],
+      "@enum": ["src/enum/index.ts"],
+      "@interfaces": ["src/interfaces/index.ts"],
+      "@middlewares": ["src/middlewares/index.ts"],
+      "@models": ["src/models/index.ts"],
+      "@services": ["src/services/index.ts"],
+      "@utils": ["src/utils/index.ts"],
+      "@validations":["src/validations/index.ts"]
+    }
+  },
+  "lib": ["es2015"],
+  "include": ["src/**/*.ts", "src/config/globals/**/*.d.ts"]
+}

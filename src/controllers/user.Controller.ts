@@ -1,15 +1,14 @@
 import { Request, Response, NextFunction } from "express";
 import { inject } from "inversify";
 import { controller, httpGet, httpPost, httpPut, httpDelete } from "inversify-express-utils";
-import { HttpStatusCode } from "../enum";
-import { ApiError, ApiResponse } from "../utils";
-import { IUser } from "../interfaces";
-import { UserService } from "../services";
-import { userValidationSchema } from "../validations";
+import { HttpStatusCode } from "@enum";
+import { ApiError, ApiResponse } from "@utils";
+import { IUser } from "@interfaces";
+import { UserService } from "@services";
+import { userValidationSchema } from "@validations";
 import bcrypt from 'bcryptjs';
-import { AuthMiddleware } from "../middlewares";
-import { Message,TYPES } from "../constants";
-
+import { AuthMiddleware } from "@middlewares";
+import { Message,TYPES } from "@constant";
 
 @controller('/user')
 export class UserController {
@@ -18,14 +17,10 @@ export class UserController {
     @httpPost('/register')
     async createUser(req: Request, res: Response, next: NextFunction): Promise<Response> {
         try {
+            
+            const {name,email,password,phoneNumber,address,role} = req.body;
 
-            const { name, email, password, phoneNumber, address, role } = req.body;
-
-            const userData: IUser = await userValidationSchema.validateAsync({ name, email, password, phoneNumber, address, role });
-
-            if (!userData) {
-                throw new ApiError(HttpStatusCode.NOT_ACCEPTABLE, Message.VALIDATION_ERROR)
-            }
+            const userData:IUser  = await userValidationSchema.validateAsync({name,email,password,phoneNumber,address,role});
 
             const user = await this.userService.createUser(userData);
 
@@ -37,10 +32,8 @@ export class UserController {
                 new ApiResponse(HttpStatusCode.OK, user, Message.CREATE_SUCCESS)
             );
         } catch (error) {
-            console.log(error);
             return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({ message: error.message });
         }
-
     }
 
     @httpGet('/login')

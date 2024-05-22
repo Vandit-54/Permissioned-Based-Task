@@ -1,5 +1,5 @@
 import mongoose, {Schema} from "mongoose";
-import { IUserPermission } from "../interfaces";
+import { IUserPermission } from "@interfaces";
 
 const userPermissionSchema: Schema<IUserPermission> = new Schema ({
     

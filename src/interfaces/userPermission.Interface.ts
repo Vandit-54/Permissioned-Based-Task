@@ -7,4 +7,4 @@ export interface IUserPermission {
     write: boolean;
     update:boolean;
     delete:boolean;
-}
+} 

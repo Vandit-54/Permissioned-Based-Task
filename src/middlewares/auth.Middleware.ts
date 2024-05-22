@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt, { JwtPayload } from 'jsonwebtoken';
-import { User } from '../models';
+import { User } from '@models';
 import { BaseMiddleware } from 'inversify-express-utils';
-import { ApiResponse } from '../utils';
-import { HttpStatusCode } from '../enum';
+import { ApiResponse } from '@utils';
+import { HttpStatusCode } from '@enum';
 
 export class AuthMiddleware extends BaseMiddleware {
 
@@ -31,6 +31,8 @@ export class AuthMiddleware extends BaseMiddleware {
                 )
             }
             req.user = decoded;
+
+            console.log(decoded);
             next();
         } catch (error) {
             if (error.name === "JsonWebTokenError") {
