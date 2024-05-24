@@ -1,0 +1,1277 @@
+// File: src/app.ts
+import 'reflect-metadata';
+import dotenv from "dotenv";
+import  express  from 'express';
+import { InversifyExpressServer } from 'inversify-express-utils';
+import cookieParser from 'cookie-parser';
+import { container } from './inversify.config';
+import { connectDB,express_config } from '@config';
+dotenv.config();
+
+const app = express();
+app.use(cookieParser());
+app.use(express.json());
+
+connectDB();
+
+// Set up InversifyExpressServer
+const server = new InversifyExpressServer(container, null, { rootPath: '/api' }, app);
+
+const appConfigured = server.build();
+
+const PORT = process.env.PORT || 3000
+
+appConfigured.listen(PORT, () => {
+    console.log('Server is running on port '+PORT);
+});
+
+// File: src/config/dbConfig.ts
+import mongoose from 'mongoose';
+
+export const connectDB = async (): Promise<void> => {
+  try {
+    const mongoURI = process.env.DB_URL;
+    if (mongoURI) {
+      await mongoose.connect(mongoURI);
+      console.log('Connected to MongoDB');
+    }
+
+  } catch (error) {
+    console.error('Error connecting to MongoDB:', error);
+    process.exit(1); 
+  }
+};
+
+// File: src/config/express.ts
+export{};
+declare global {
+    namespace Express {
+        export interface Request {
+            user: any;
+        }
+    }
+}
+// File: src/config/index.ts
+import { connectDB } from "./dbConfig";
+import * as express_config from "./express"
+
+
+export {
+    connectDB,
+    express_config
+}
+// File: src/constants/index.ts
+import { Message } from "./messages";
+import { TYPES } from "./types";
+
+export {
+    Message,
+    TYPES
+}
+// File: src/constants/messages.ts
+export const Message = {
+    CREATE_SUCCESS: "Resource created successfully",
+    LOGGED_IN_SUCCESS: "Resource logged in successfully",
+    UPDATE_SUCCESS: "Resource updated successfully",
+    DELETE_SUCCESS: "Resource deleted successfully",
+    CREATE_FAILURE: "Failed to create resource",
+    READ_FAILURE: "Failed to retrieve resource",
+    UPDATE_FAILURE: "Failed to update resource",
+    DELETE_FAILURE: "Failed to delete resource",
+    GENERIC_ERROR: "Something went wrong",
+    VALIDATION_ERROR: "Validation Failed",
+    DUPLICATION_ERROR: "Resource Already Exists in the System",
+    NOT_FOUND: "Resource not found",
+    PASSWORD_VALIDATION: "Invalid password",
+    SUCCESS: "Resource fetched successfully!!!"
+};
+// File: src/constants/types.ts
+
+export const TYPES = {
+    UserService : Symbol.for('UserService'),
+    RoleService : Symbol.for('RoleService'),
+    ModuleService : Symbol.for('ModuleServie'),
+    UserPermissionService : Symbol.for('UserPermissionService')
+}
+// File: src/controllers/index.ts
+import { UserController } from "./user.Controller";
+import { RoleController } from "./role.Controller";
+import { ModuleController } from "./module.Controller";
+
+export {
+    UserController,
+    RoleController,
+    ModuleController
+}
+// File: src/controllers/module.Controller.ts
+import { Request, Response, NextFunction } from "express";
+import { inject } from "inversify";
+import { controller, httpDelete, httpGet, httpPost, httpPut } from "inversify-express-utils";
+import { HttpStatusCode } from "@enum";
+import { ApiError, ApiResponse } from "@utils";
+import { IModule } from "@interfaces";
+import { Message, TYPES, } from "@constant";
+import { ModuleService } from "@services";
+import { moduleValidationSchema } from "@validations";
+
+@controller('/module')
+export class ModuleController {
+    constructor(@inject(TYPES.ModuleService) private moduleService: ModuleService) { }
+
+    @httpPost('/create')
+    async createRole(req: Request, res: Response, next: NextFunction): Promise<Response> {
+        try {
+            const { name, description } = req.body;
+            const moduleData: IModule = await moduleValidationSchema.validateAsync({ name, description });
+            const module = await this.moduleService.createModule(moduleData);
+
+            if (!module) {
+                throw new ApiError(HttpStatusCode.INTERNAL_SERVER_ERROR, Message.CREATE_FAILURE)
+            }
+
+            return res.status(HttpStatusCode.CREATED).json(
+                new ApiResponse(HttpStatusCode.OK, module, Message.CREATE_SUCCESS)
+            )
+
+        } catch (error) {
+            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({ message: error.message })
+        }
+    }
+
+    @httpGet('/getModules')
+    async getRoles(req:Request,res:Response,next:NextFunction):Promise<Response>{
+        try {
+            const query = req.query
+            const modules = await this.moduleService.getModules(query);
+            if (!modules) {
+                throw new ApiError(HttpStatusCode.INTERNAL_SERVER_ERROR,Message.READ_FAILURE)
+            }
+            return res.status(HttpStatusCode.OK).json(
+                new ApiResponse(HttpStatusCode.OK,modules,Message.SUCCESS)
+            )
+        } catch (error) {
+            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({ message: error.message });
+        }   
+    }   
+
+    @httpPut('/update')
+    async updateRoles(req:Request,res:Response,next:NextFunction):Promise<Response>{
+        try {
+            const {name,description} = req.body;
+            const moduleId = req.query.id as string
+            const moduleData = await moduleValidationSchema.validateAsync({name,description});
+            const module = await this.moduleService.updateModule(moduleId,moduleData);  
+            if (!module) {
+                throw new ApiError(HttpStatusCode.INTERNAL_SERVER_ERROR,Message.UPDATE_FAILURE)
+            }
+            return res.status(HttpStatusCode.OK).json(
+                new ApiResponse(HttpStatusCode.OK,module,Message.UPDATE_SUCCESS)
+            )
+        } catch (error) {
+            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({ message: error.message });
+        }
+    }
+
+    @httpDelete('/delete')
+    async deleteRole(req:Request,res:Response,next:NextFunction):Promise<Response>{
+        try {
+            const moduleId = req.query.id as string;
+            const module = await this.moduleService.deleteModule(moduleId);
+            if (!module) {
+                throw new ApiError(HttpStatusCode.INTERNAL_SERVER_ERROR,Message.DELETE_FAILURE)
+            }
+            return res.status(HttpStatusCode.OK).json(
+                new ApiResponse(HttpStatusCode.OK,module,Message.DELETE_SUCCESS)
+            )
+        } catch (error) {
+            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({ message: error.message });
+        }
+    }
+}
+// File: src/controllers/role.Controller.ts
+import { Request, Response, NextFunction } from "express";
+import { inject } from "inversify";
+import { controller, httpDelete, httpGet, httpPost, httpPut } from "inversify-express-utils";
+import { HttpStatusCode } from "@enum";
+import { ApiError, ApiResponse } from "@utils";
+import { IRole } from "@interfaces";
+import { Message, TYPES, } from "@constant";
+import { RoleService } from "@services";
+import { roleValidationSchema } from "@validations";
+
+@controller('/role')
+export class RoleController {
+    constructor(@inject(TYPES.RoleService) private roleService: RoleService) { }
+
+    @httpPost('/create')
+    async createRole(req: Request, res: Response, next: NextFunction): Promise<Response> {
+        try {
+            const { name, description } = req.body;
+            const roleData: IRole = await roleValidationSchema.validateAsync({ name, description });
+            const role = await this.roleService.createRole(roleData);
+
+            if (!role) {
+                throw new ApiError(HttpStatusCode.INTERNAL_SERVER_ERROR, Message.CREATE_FAILURE)
+            }
+
+            return res.status(HttpStatusCode.CREATED).json(
+                new ApiResponse(HttpStatusCode.OK, role, Message.CREATE_SUCCESS)
+            )
+
+        } catch (error) {
+            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({ message: error.message })
+        }
+    }
+
+    @httpGet('/getRoles')
+    async getRoles(req: Request, res: Response, next: NextFunction): Promise<Response> {
+        try {
+            const query = req.query
+            const roles = await this.roleService.getRoles(query);
+            if (!roles) {
+                throw new ApiError(HttpStatusCode.INTERNAL_SERVER_ERROR, Message.READ_FAILURE)
+            }
+            return res.status(HttpStatusCode.OK).json(
+                new ApiResponse(HttpStatusCode.OK, roles, Message.SUCCESS)
+            )
+        } catch (error) {
+            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({ message: error.message });
+        }
+    }
+
+    @httpPut('/update')
+    async updateRoles(req: Request, res: Response, next: NextFunction): Promise<Response> {
+        try {
+            const { name, description } = req.body;
+            const roleId = req.query.id as string;
+            const roleData = await roleValidationSchema.validateAsync({ name, description });
+            const role = await this.roleService.updateRole(roleId, roleData);
+            if (!role) {
+                throw new ApiError(HttpStatusCode.INTERNAL_SERVER_ERROR, Message.UPDATE_FAILURE)
+            }
+            return res.status(HttpStatusCode.OK).json(
+                new ApiResponse(HttpStatusCode.OK, role, Message.UPDATE_SUCCESS)
+            )
+        } catch (error) {
+            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({ message: error.message });
+        }
+    }
+
+    @httpDelete('/delete')
+    async deleteRole(req: Request, res: Response, next: NextFunction): Promise<Response> {
+        try {
+            const roleId = req.query.id as string;
+            const role = await this.roleService.deleteRole(roleId);
+            if (!role) {
+                throw new ApiError(HttpStatusCode.INTERNAL_SERVER_ERROR, Message.DELETE_FAILURE)
+            }
+            return res.status(HttpStatusCode.OK).json(
+                new ApiResponse(HttpStatusCode.OK, role, Message.DELETE_SUCCESS)
+            )
+        } catch (error) {
+            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({ message: error.message });
+        }
+    }
+}
+// File: src/controllers/user.Controller.ts
+import { Request, Response, NextFunction } from "express";
+import { inject } from "inversify";
+import { controller, httpGet, httpPost, httpPut, httpDelete } from "inversify-express-utils";
+import { HttpStatusCode } from "@enum";
+import { ApiError, ApiResponse } from "@utils";
+import { IUser } from "@interfaces";
+import { UserService } from "@services";
+import { userValidationSchema } from "@validations";
+import bcrypt from 'bcryptjs';
+import { AuthMiddleware } from "@middlewares";
+import { Message,TYPES } from "@constant";
+
+@controller('/user')
+export class UserController {
+    constructor(@inject(TYPES.UserService) private userService: UserService) { }
+
+    @httpPost('/register')
+    async createUser(req: Request, res: Response, next: NextFunction): Promise<Response> {
+        try {
+            
+            const {name,email,password,phoneNumber,address,role} = req.body;
+
+            const userData:IUser  = await userValidationSchema.validateAsync({name,email,password,phoneNumber,address,role});
+
+            const user = await this.userService.createUser(userData);
+
+            if (!user) {
+                throw new ApiError(HttpStatusCode.INTERNAL_SERVER_ERROR, Message.CREATE_FAILURE);
+            }
+
+            return res.status(HttpStatusCode.CREATED).json(
+                new ApiResponse(HttpStatusCode.OK, user, Message.CREATE_SUCCESS)
+            );
+        } catch (error) {
+            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({ message: error.message });
+        }
+    }
+
+    @httpGet('/login')
+    async login(req: Request, res: Response): Promise<Response> {
+        try {
+            const { email, password } = req.body;
+
+            const user = await this.userService.login(email);
+            if (!user) {
+                return res.status(HttpStatusCode.NOT_FOUND).json({ message: Message.NOT_FOUND });
+            }
+            const comparePassword = bcrypt.compareSync(password, user.password);
+
+            if (!comparePassword) {
+                return res.status(HttpStatusCode.UNAUTHORIZED).json({ message: Message.PASSWORD_VALIDATION });
+            }
+
+            const token = user.accessToken();
+
+            if (!token) {
+                return res.status(HttpStatusCode.BAD_REQUEST).json({ message: Message.GENERIC_ERROR });
+            }
+
+            return res.status(HttpStatusCode.OK).json(
+                new ApiResponse(HttpStatusCode.ACCEPTED, { loggedInUser: user, token: token },Message.LOGGED_IN_SUCCESS)
+            );
+        } catch (error) {
+            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({ message: error.message });
+        }
+    }
+
+    @httpPut('/update', AuthMiddleware)
+    async updateUser(req: Request, res: Response): Promise<Response> {
+        try {
+            const userId = req.user.id;
+
+            const { name, email, phoneNumber, address, role } = req.body;
+
+            const userData: IUser = await userValidationSchema.validateAsync({ name, email, phoneNumber, address, role });
+
+            if (!userData) {
+                throw new ApiError(HttpStatusCode.NOT_ACCEPTABLE, Message.VALIDATION_ERROR)
+            }
+
+            const updatedUser = await this.userService.updateUser(userId, userData);
+
+            if (!updatedUser) {
+                throw new ApiError(HttpStatusCode.INTERNAL_SERVER_ERROR, Message.UPDATE_FAILURE)
+            }
+
+            return res.status(HttpStatusCode.OK).json(
+                new ApiResponse(HttpStatusCode.OK, { updatedUser: updatedUser }, Message.UPDATE_SUCCESS)
+            )
+        } catch (error) {
+            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({ message: error.message });
+        }
+    }
+
+    @httpDelete('/delete', AuthMiddleware)
+    async deleteUser(req: Request, res: Response): Promise<Response> {
+        try {
+            const userId = req.user.id;
+            const status = await this.userService.deleteUser(userId);
+            if (!status) {
+                throw new ApiError(HttpStatusCode.INTERNAL_SERVER_ERROR, Message.DELETE_FAILURE)
+            }
+            return res.status(HttpStatusCode.OK).json(
+                new ApiResponse(HttpStatusCode.OK, '', Message.DELETE_SUCCESS)
+            )
+        } catch (error) {
+            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({ message: error.message });
+        }
+    }
+
+}       
+// File: src/enum/enumStatusCode.ts
+enum HttpStatusCode {
+    CONTINUE = 100,
+    SWITCHING_PROTOCOLS = 101,
+    PROCESSING = 102,
+    EARLY_HINTS = 103,
+    OK = 200,
+    CREATED = 201,
+    ACCEPTED = 202,
+    NON_AUTHORITATIVE_INFORMATION = 203,
+    NO_CONTENT = 204,
+    RESET_CONTENT = 205,
+    PARTIAL_CONTENT = 206,
+    MULTI_STATUS = 207,
+    ALREADY_REPORTED = 208,
+    IM_USED = 226,
+    MULTIPLE_CHOICES = 300,
+    MOVED_PERMANENTLY = 301,
+    FOUND = 302,
+    SEE_OTHER = 303,
+    NOT_MODIFIED = 304,
+    USE_PROXY = 305,
+    TEMPORARY_REDIRECT = 307,
+    PERMANENT_REDIRECT = 308,
+    BAD_REQUEST = 400,
+    UNAUTHORIZED = 401,
+    PAYMENT_REQUIRED = 402,
+    FORBIDDEN = 403,
+    NOT_FOUND = 404,
+    METHOD_NOT_ALLOWED = 405,
+    NOT_ACCEPTABLE = 406,
+    PROXY_AUTHENTICATION_REQUIRED = 407,
+    REQUEST_TIMEOUT = 408,
+    CONFLICT = 409,
+    GONE = 410,
+    LENGTH_REQUIRED = 411,
+    PRECONDITION_FAILED = 412,
+    PAYLOAD_TOO_LARGE = 413,
+    URI_TOO_LONG = 414,
+    UNSUPPORTED_MEDIA_TYPE = 415,
+    RANGE_NOT_SATISFIABLE = 416,
+    EXPECTATION_FAILED = 417,
+    IM_A_TEAPOT = 418,
+    MISDIRECTED_REQUEST = 421,
+    UNPROCESSABLE_ENTITY = 422,
+    LOCKED = 423,
+    FAILED_DEPENDENCY = 424,
+    TOO_EARLY = 425,
+    UPGRADE_REQUIRED = 426,
+    PRECONDITION_REQUIRED = 428,
+    TOO_MANY_REQUESTS = 429,
+    REQUEST_HEADER_FIELDS_TOO_LARGE = 431,
+    UNAVAILABLE_FOR_LEGAL_REASONS = 451,
+    INTERNAL_SERVER_ERROR = 500,
+    NOT_IMPLEMENTED = 501,
+    BAD_GATEWAY = 502,
+    SERVICE_UNAVAILABLE = 503,
+    GATEWAY_TIMEOUT = 504,
+    HTTP_VERSION_NOT_SUPPORTED = 505,
+    VARIANT_ALSO_NEGOTIATES = 506,
+    INSUFFICIENT_STORAGE = 507,
+    LOOP_DETECTED = 508,
+    BANDWIDTH_LIMIT_EXCEEDED = 509,
+    NOT_EXTENDED = 510,
+    NETWORK_AUTHENTICATION_REQUIRED = 511
+}
+
+export default HttpStatusCode;
+
+// File: src/enum/index.ts
+import HttpStatusCode from "./enumStatusCode";
+
+export {
+    HttpStatusCode
+}
+// File: src/interfaces/index.ts
+import { IUser } from "./user.Interface";
+import { IUserPermission } from "./userPermission.Interface";
+import { IModule } from "./module.Interface";
+import { IRole } from "./role.Interface";
+
+export {
+    IModule,
+    IUser,
+    IUserPermission,
+    IRole
+}
+// File: src/interfaces/module.Interface.ts
+export interface IModule {
+    name:string;
+    description:string;
+    isActive:boolean;
+    isDeleted:boolean;
+}
+// File: src/interfaces/role.Interface.ts
+export interface IRole {
+    name : string;
+    description : string;
+    isDeleted : boolean;
+}
+// File: src/interfaces/user.Interface.ts
+import mongoose from "mongoose";
+
+export interface IUser{
+    name:string;
+    email:string;
+    password?:string;
+    phoneNumber:number;
+    address?:string;
+    role?:mongoose.Types.ObjectId;
+    isActive?:boolean;
+    isDeleted?:boolean;
+    isBlocked?:boolean;
+    accessToken?():string;
+}
+// File: src/interfaces/userPermission.Interface.ts
+import mongoose from "mongoose";
+
+export interface IUserPermission {
+    roleId:mongoose.Types.ObjectId;
+    moduleId:mongoose.Types.ObjectId;
+    read: boolean;
+    write: boolean;
+    update:boolean;
+    delete:boolean;
+} 
+// File: src/inversify.config.ts
+import { Container } from 'inversify';
+import { UserController, RoleController,ModuleController } from '@controllers';
+import { UserService, RoleService, ModuleService,UserPermissionService } from '@services';
+import { TYPES } from '@constant';
+import { AuthMiddleware } from '@middlewares';
+
+
+const container = new Container();
+
+// Bind Services
+container.bind<UserService>(TYPES.UserService).to(UserService);
+container.bind<RoleService>(TYPES.RoleService).to(RoleService);
+container.bind<ModuleService>(TYPES.ModuleService).to(ModuleService);
+container.bind<UserPermissionService>(TYPES.UserPermissionService).to(UserPermissionService);
+
+// Bind Controllers
+container.bind<UserController>(UserController).toSelf();
+container.bind<RoleController>(RoleController).toSelf();
+container.bind<ModuleController>(ModuleController).toSelf();
+
+//Bind Middelwear
+container.bind<AuthMiddleware>(AuthMiddleware).toSelf();
+
+
+export { container };
+
+// File: src/middlewares/auth.Middleware.ts
+import { Request, Response, NextFunction } from 'express';
+import jwt, { JwtPayload } from 'jsonwebtoken';
+import { User } from '@models';
+import { BaseMiddleware } from 'inversify-express-utils';
+import { ApiResponse } from '@utils';
+import { HttpStatusCode } from '@enum';
+
+export class AuthMiddleware extends BaseMiddleware {
+
+    async handler(req: Request, res: Response, next: NextFunction) {
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(HttpStatusCode.FORBIDDEN).json(
+                new ApiResponse(HttpStatusCode.FORBIDDEN, null, "Access denied. No token provided.")
+            )
+        }
+
+        try {
+            const decoded = jwt.verify(token, process.env.ACCESS_TOKEN) as JwtPayload;
+            if (!decoded) {
+                return res.status(HttpStatusCode.UNAUTHORIZED).json(
+                    new ApiResponse(HttpStatusCode.UNAUTHORIZED, null, "Token verification failed.")
+                )
+            }
+            const userId = decoded.id;
+            const user = await User.findOne({ _id: userId });
+
+            if (!user) {
+                return res.status(HttpStatusCode.NOT_FOUND).json(
+                    new ApiResponse(HttpStatusCode.NOT_FOUND, null, "User not found")
+                )
+            }
+            req.user = decoded;
+
+            console.log(decoded);
+            next();
+        } catch (error) {
+            if (error.name === "JsonWebTokenError") {
+                return res.status(HttpStatusCode.UNAUTHORIZED).json(
+                    new ApiResponse(HttpStatusCode.UNAUTHORIZED, null, "Invalid Token")
+                )
+            }
+            if (error.name === "TokenExpiredError") {
+                return res.status(HttpStatusCode.UNAUTHORIZED).json(
+                    new ApiResponse(HttpStatusCode.UNAUTHORIZED, null, "Token Expired")
+                )
+            }
+
+            return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json(
+                new ApiResponse(HttpStatusCode.INTERNAL_SERVER_ERROR, error, "Something went wrong")
+            )
+
+        }
+    };
+}
+
+// File: src/middlewares/index.ts
+import { AuthMiddleware } from "./auth.Middleware";
+
+export{
+    AuthMiddleware,
+} 
+// File: src/models/index.ts
+import { User } from "./user.Model";
+import { Role } from "./role.Model";
+import { Module } from "./module.Model";
+import { UserPermission } from "./userPermission.Model";
+
+export {
+    User,
+    Role,
+    Module,
+    UserPermission
+}
+// File: src/models/module.Model.ts
+import mongoose, {Schema} from "mongoose";
+import { IModule } from "@interfaces";
+
+const moduleSchema :Schema<IModule> = new Schema({
+
+    name :{
+        type: String,
+        required: true,
+    },
+    description :{
+        type:String,
+        required:true
+    },
+    isActive : {
+        type: Boolean,
+        default: true
+    },
+    isDeleted : {
+        type: Boolean,
+        default:false
+    }
+
+})
+
+export const Module = mongoose.model<IModule>('Module',moduleSchema)
+// File: src/models/role.Model.ts
+import mongoose, {Schema} from "mongoose";
+import { IRole } from "@interfaces";
+
+const roleSchema : Schema<IRole> = new Schema ({
+
+    name : {
+        type: String,
+        required: true,
+    },
+    description: {
+        type: String,
+    },
+    isDeleted : {
+        type: Boolean,
+        default:false
+    }
+})
+
+export const Role = mongoose.model<IRole>('Role',roleSchema);
+// File: src/models/user.Model.ts
+import mongoose, {  Schema } from "mongoose";
+import { IUser } from "@interfaces";
+import { passwordHelper, generateAccessToken } from "@utils";
+
+const userSchema: Schema<IUser> = new Schema({
+
+    name: {
+        type: String,
+        required: true
+    },
+    email: {
+        type: String,
+        unique: true,
+        required: true
+    },
+    password: {
+        type: String,
+        required: true
+    },
+    phoneNumber: {
+        type: Number,
+        unique: true,
+        required: true
+    },
+    address: {
+        type: String
+    },
+    role: {
+        type: Schema.Types.ObjectId,
+        required: true
+    },
+    isActive: {
+        type: Boolean,
+        default: true
+    },
+    isDeleted: {
+        type: Boolean,
+        default: false
+    },
+    isBlocked: {
+        type: Boolean,
+        default: false
+    }
+
+}, { timestamps: true });
+
+userSchema.pre("save", passwordHelper);
+
+userSchema.methods.accessToken = generateAccessToken;
+
+export const User = mongoose.model<IUser>('User', userSchema);
+
+
+// File: src/models/userPermission.Model.ts
+import mongoose, {Schema} from "mongoose";
+import { IUserPermission } from "@interfaces";
+
+const userPermissionSchema: Schema<IUserPermission> = new Schema ({
+    
+    roleId: {
+        type:Schema.Types.ObjectId,
+        ref:'Role',
+        required:true
+    },
+    moduleId:{
+        type:Schema.Types.ObjectId,
+        ref:'Module',
+        required:true
+    },
+    read: {
+        type: Boolean,
+        default:false
+    },
+    write: {
+        type: Boolean,
+        default:false
+    },
+    update:{
+        type: Boolean,
+        default:false
+    },
+    delete:{
+        type: Boolean,
+        default:false
+    },
+})
+
+export const UserPermission = mongoose.model<IUserPermission>('UserPermission',userPermissionSchema)
+// File: src/services/index.ts
+export * from './module.Service'
+export * from './role.Service'
+export * from './user.Service'
+export * from './userPermission.Service'
+// File: src/services/module.Service.ts
+import { injectable } from "inversify";
+import { Module } from "@models";
+import { IModule } from "@interfaces";
+
+@injectable()
+export class ModuleService {
+
+    async createModule(roleData: IModule): Promise<IModule | null> {
+        const role = await Module.create(roleData);
+        return role;
+    }
+
+    async getModules(queryParams: any): Promise<{ data: IModule[], total: number, page: number, limit: number, pages: number }> {
+
+        const { page = 1, limit = 10, sort = 'name', order = 'asc', search = '' } = queryParams;
+
+        const query: any = { isDeleted: { $ne: true } };
+
+        if (search) {
+            query.name = { $regex: search, $options: 'i' };
+        }
+
+        const modules = await Module.find(query)
+            .sort({ [sort]: order === 'asc' ? 1 : -1 })
+            .skip((Number(page) - 1) * Number(limit))
+            .limit(Number(limit));
+
+        const total = await Module.countDocuments(query);
+
+        return {
+            total,
+            data: modules,
+            page: Number(page),
+            limit: Number(limit),
+            pages: Math.ceil(total / Number(limit))
+        };
+    }
+
+    async updateModule(moduleId: string, updateData: any): Promise<IModule | null> {
+
+        const filter = {
+            _id: moduleId
+        }
+        const update = {
+            $set: updateData
+        }
+        const options = {
+            new: true
+        }
+
+        const updatedModule = await Module.findByIdAndUpdate(filter, update, options);
+        return updatedModule;
+    }
+
+    async deleteModule(moduleId:string){
+        
+        const filter = {
+            _id: moduleId
+        }
+        const update = {
+            $set: {
+                isDeleted : true,
+                isActive : false
+            }
+        }
+        const options = {
+            new: true
+        }
+
+        const module = await  Module.findByIdAndUpdate(filter, update, options).select("-password");
+        return module;
+    }
+
+}
+// File: src/services/role.Service.ts
+import { injectable } from "inversify";
+import { Role } from "@models";
+import { IRole } from "@interfaces";
+
+@injectable()
+export class RoleService {
+
+    async createRole(roleData: IRole): Promise<IRole | null> {
+        const role = await Role.create(roleData);
+        return role;
+    }
+
+    async getRoles(queryParams: any): Promise<{ data: IRole[], total: number, page: number, limit: number, pages: number }> {
+        const { page = 1, limit = 10, sort = 'name', order = 'asc', search = '' } = queryParams;
+    
+        const query: any = { isDeleted: { $ne: true } };
+    
+        if (search) {
+            query.name = { $regex: search, $options: 'i' };
+        }
+    
+        const roles = await Role.find(query)
+            .sort({ [sort]: order === 'asc' ? 1 : -1 })
+            .skip((Number(page) - 1) * Number(limit))
+            .limit(Number(limit));
+    
+        const total = await Role.countDocuments(query);
+    
+        return {
+            total,
+            data: roles,
+            page: Number(page),
+            limit: Number(limit),
+            pages: Math.ceil(total / Number(limit))
+        };
+    }
+    
+
+    async updateRole(roleId: string, updateData: any): Promise<IRole | null> {
+
+        const filter = {
+            _id: roleId
+        }
+        const update = {
+            $set: updateData
+        }
+        const options = {
+            new: true
+        }
+
+        console.log(filter);
+
+        const updatedRole = await Role.findByIdAndUpdate(filter, update, options);
+        return updatedRole;
+    }
+
+    async deleteRole(roleId:string){
+        
+        const filter = {
+            _id: roleId
+        }
+        const update = {
+            $set: {
+                isDeleted : true
+            }
+        }
+        const options = {
+            new: true
+        }
+
+        const role = await  Role.findByIdAndUpdate(filter, update, options).select("-password");
+        return role;
+    }
+
+}
+// File: src/services/user.Service.ts
+import { injectable } from "inversify";
+import { User } from "@models";
+import { IUser } from "@interfaces";
+
+@injectable()
+export class UserService {
+
+    async createUser(userData: IUser): Promise<IUser | null> {
+        const user = await User.create(userData);
+        return user;
+    }
+
+    async login(email: IUser): Promise<IUser | null> {
+        const user = await User.findOne({ email });
+        return user;
+    }
+
+    async updateUser(userId: string, updateData: any): Promise<IUser | null> {
+        delete updateData.password;
+
+        const filter = {
+            _id: userId
+        }
+        const update = {
+            $set: {
+                name: updateData.name,
+                email: updateData.email,
+                phoneNumber: updateData.phoneNumber,
+                address: updateData.address,
+                role: updateData.role
+            }
+        }
+        const options = {
+            new: true
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(filter, update, options).select("-password");
+        return updatedUser;
+    }
+
+    async deleteUser(userId: string): Promise<any> {
+
+        const filter = {
+            _id: userId
+        }
+        const update = {
+            $set: {
+                isDeleted : true
+            }
+        }
+        const options = {
+            new: true
+        }
+
+
+        const user = await  User.findByIdAndUpdate(filter, update, options).select("-password");
+        return user;
+    }
+}
+// File: src/services/userPermission.Service.ts
+import { injectable } from "inversify";
+import { UserPermission } from "@models";
+import { IUserPermission } from "@interfaces";
+
+@injectable()
+export class UserPermissionService {
+
+    async createUserPermission(userPermissionData: IUserPermission): Promise<IUserPermission | null> {
+        const userPermission = await UserPermission.create(userPermissionData);
+        return userPermission;
+    }
+
+    async getUserPermissions(queryParams: any): Promise<{ data: IUserPermission[], total: number, page: number, limit: number, pages: number }> {
+        const { page = 1, limit = 10, sort = 'name', order = 'asc', search = '' } = queryParams;
+    
+        const query: any = { isDeleted: { $ne: true } };
+    
+        if (search) {   
+            query.name = { $regex: search, $options: 'i' };
+        }
+    
+        const userPermissions = await UserPermission.find(query)
+            .sort({ [sort]: order === 'asc' ? 1 : -1 })
+            .skip((Number(page) - 1) * Number(limit))
+            .limit(Number(limit));
+    
+        const total = await UserPermission.countDocuments(query);
+    
+        return {
+            total,
+            data: userPermissions,
+            page: Number(page),
+            limit: Number(limit),
+            pages: Math.ceil(total / Number(limit))
+        };
+    }
+    
+
+    async updateUserPermission(userPermissionId: string, updateData: any): Promise<IUserPermission | null> {
+
+        const filter = {
+            _id: userPermissionId
+        }
+        const update = {
+            $set: updateData
+        }
+        const options = {
+            new: true
+        }
+
+        console.log(filter);
+
+        const updatedUserPermission = await UserPermission.findByIdAndUpdate(filter, update, options);
+        return updatedUserPermission;
+    }
+
+    async deleteUserPermission(userPermissionId:string){
+        
+        const filter = {
+            _id: userPermissionId
+        }
+        const update = {
+            $set: {
+                isDeleted : true
+            }
+        }
+        const options = {
+            new: true
+        }
+
+        const role = await  UserPermission.findByIdAndUpdate(filter, update, options).select("-password");
+        return role;
+    }
+
+}
+// File: src/utils/accessToken.ts
+import jwt from 'jsonwebtoken';
+
+export function generateAccessToken(): string {
+  const { ACCESS_TOKEN, ACCESS_TOKEN_EXPIRE } = process.env;
+
+  if (!ACCESS_TOKEN || !ACCESS_TOKEN_EXPIRE) {
+    throw new Error('ACCESS_TOKEN and ACCESS_TOKEN_EXPIRE must be defined in environment variables.');
+  }
+
+  interface PayloadInterface {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  }
+
+  const payload: PayloadInterface = {
+    id: this._id,
+    name: this.name,
+    email: this.email,
+    role: this.role
+  };
+
+  try {
+    const token = jwt.sign(payload, ACCESS_TOKEN, { expiresIn: ACCESS_TOKEN_EXPIRE });
+    return token;
+  } catch (error: any) {
+    throw new Error('Error signing token: ' + error.message);
+  }
+}
+
+// File: src/utils/apiError.ts
+class ApiError extends Error {
+    statusCode: number;
+    data: null;
+    success: boolean;
+    errors: any[];
+  
+    constructor(statusCode: number, message = "something went wrong", errors: any[] = []) {
+      super(message);
+      this.statusCode = statusCode;
+      this.data = null;
+      this.success = false;
+      this.errors = errors;
+    }
+  }
+  
+export { ApiError };
+// File: src/utils/apiResponse.ts
+class ApiResponse {
+
+    statusCode: number;
+    data: any;
+    message: string;
+    success: boolean;
+    constructor(statusCode: number, data?: any,  message: string="Success") {
+
+        this.statusCode = statusCode;
+        this.data = data;
+        this.message = message;
+        this.success = statusCode < 400
+
+    }
+}
+
+export { ApiResponse };
+// File: src/utils/errorHandler.ts
+import { ApiError } from "./apiError";
+import { HttpStatusCode } from "@enum";
+import { Response,NextFunction } from "express";
+
+export const customErrorHandler = (error:any, res:Response,next: NextFunction) => {
+
+    if (error.code == 11000) {
+        error = new ApiError(HttpStatusCode.CONFLICT, "Duplicate Field Value Enter ")
+    }
+
+    if (error.name === 'SyntaxError') {
+
+        error = new ApiError(HttpStatusCode.BAD_REQUEST, 'Unexpected Sytax ')
+    }
+    if (error.name === 'ValidationError') {
+
+        error = new ApiError(HttpStatusCode.BAD_REQUEST, error.message)
+    }
+
+    if (error.name === "CastError") {
+
+        error = new ApiError(HttpStatusCode.BAD_REQUEST, "Please provide a valid id  ")
+    }
+    if (error.name === "TokenExpiredError") {
+
+        error = new ApiError(HttpStatusCode.UNAUTHORIZED, "Jwt expired  ")
+    }
+    if (error.name === "JsonWebTokenError") {
+        error = new ApiError(HttpStatusCode.UNAUTHORIZED, "Jwt malformed  ")
+
+    }
+    console.log("Custom Error Handler => ", error.name, error.message, error.statusCode)
+
+    return res.status(error.statusCode || HttpStatusCode.INTERNAL_SERVER_ERROR)
+        .json({
+            success: false,
+            error: error.message || "Server Error"
+        })
+
+}
+
+
+// File: src/utils/index.ts
+import { passwordHelper } from "./passwordHelper";
+import { generateAccessToken } from "./accessToken";
+import { ApiError } from "./apiError";
+import { ApiResponse } from "./apiResponse";
+import { customErrorHandler } from "./errorHandler";
+
+export {
+    passwordHelper,
+    generateAccessToken,
+    ApiError,
+    ApiResponse,
+    customErrorHandler
+}
+// File: src/utils/passwordHelper.ts
+import bcrypt from 'bcryptjs';
+
+export async function passwordHelper(next: Function): Promise<void> {
+  if (!this.isModified("password")) {
+    next();
+  }
+  const salt = await bcrypt.genSalt(10);
+  const password = this.password;
+  if (!password) {
+    throw new Error("Password not provided");
+  }
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
+}
+
+// File: src/validations/index.ts
+import { userValidationSchema } from "./userValidationSchema";
+import { roleValidationSchema } from "./roleValidationSchema";
+import { moduleValidationSchema } from "./moduleValidationSchema";
+import { userPermissionValidationSchema } from "./userPermissionValidationSchema";
+
+export {
+    userValidationSchema,
+    roleValidationSchema,
+    moduleValidationSchema,
+    userPermissionValidationSchema
+}
+// File: src/validations/moduleValidationSchema.ts
+import Joi from 'joi';
+
+export const moduleValidationSchema = Joi.object({
+    name: Joi.string()
+        .min(5) 
+        .required(), 
+
+    description: Joi.string()
+        .min(10) 
+        .required()
+});
+
+// File: src/validations/roleValidationSchema.ts
+import Joi from 'joi';
+
+export const roleValidationSchema = Joi.object({
+    name: Joi.string()
+        .min(3)
+        .required(),
+
+    description: Joi.string()
+        .min(10)
+        .required()
+});
+// File: src/validations/userPermissionValidationSchema.ts
+import Joi from 'joi';
+import mongoose from 'mongoose';
+
+export const userPermissionValidationSchema = Joi.object({
+    roleId: Joi.string()
+        .custom((value, helpers) => {
+            if (!mongoose.Types.ObjectId.isValid(value)) {
+                return helpers.error('any.invalid', { label: 'roleId' });
+            }
+            return value;
+        }, 'ObjectId validation')
+        .required(),
+
+    moduleId: Joi.string()
+        .custom((value, helpers) => {
+            if (!mongoose.Types.ObjectId.isValid(value)) {
+                return helpers.error('any.invalid', { label: 'moduleId' });
+            }
+            return value;
+        }, 'ObjectId validation')
+        .required(),
+        
+}).messages({
+    'any.invalid': '{{#label}} must be a valid ObjectId'
+});
+
+// File: src/validations/userValidationSchema.ts
+import Joi from 'joi';
+
+export const userValidationSchema = Joi.object({
+    name: Joi.string()
+        .min(3)
+        .max(30)
+        .required(),
+
+    email: Joi.string()
+        .email({ tlds: { allow: false } })
+        .required(),
+
+    password: Joi.string()
+        .min(6)
+        .required(),
+
+    phoneNumber: Joi.string()
+        .pattern(/^\d+$/)
+        .min(10)
+        .max(15)
+        .required(),
+
+    address: Joi.string()
+        .min(5)
+        .required(),
+
+    role: Joi.string()
+        .valid('admin', 'user', 'manager')
+        .required()
+});

@@ -27,8 +27,8 @@ export class RoleService {
         const total = await Role.countDocuments(query);
     
         return {
-            data: roles,
             total,
+            data: roles,
             page: Number(page),
             limit: Number(limit),
             pages: Math.ceil(total / Number(limit))

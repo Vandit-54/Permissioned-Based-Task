@@ -1,9 +1,4 @@
-import { UserService } from "./user.Service";
-import { RoleService } from "./role.Service";
-import { ModuleService } from "./module.Service";
-
-export {
-    UserService,
-    RoleService,
-    ModuleService
-}
+export * from './module.Service'
+export * from './role.Service'
+export * from './user.Service'
+export * from './userPermission.Service'

@@ -3,9 +3,9 @@
     "require": ["tsconfig-paths/register"]
   },
   "compilerOptions": {
-    "module": "commonjs",
-    "esModuleInterop": true,
+    "module": "CommonJS",
     "target": "es6",
+    "esModuleInterop": true,
     "moduleResolution": "node",
     "sourceMap": true,
     "outDir": "dist",
@@ -22,7 +22,7 @@
       "@models": ["src/models/index.ts"],
       "@services": ["src/services/index.ts"],
       "@utils": ["src/utils/index.ts"],
-      "@validations":["src/validations/index.ts"]
+      "@validations": ["src/validations/index.ts"]
     }
   },
   "lib": ["es2015"],

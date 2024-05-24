@@ -14,7 +14,11 @@ export class ModuleService {
 
         const { page = 1, limit = 10, sort = 'name', order = 'asc', search = '' } = queryParams;
 
-        const query = search ? { name: { $regex: search, $options: 'i' } } : {};
+        const query: any = { isDeleted: { $ne: true } };
+
+        if (search) {
+            query.name = { $regex: search, $options: 'i' };
+        }
 
         const modules = await Module.find(query)
             .sort({ [sort]: order === 'asc' ? 1 : -1 })
@@ -24,8 +28,8 @@ export class ModuleService {
         const total = await Module.countDocuments(query);
 
         return {
-            data: modules,
             total,
+            data: modules,
             page: Number(page),
             limit: Number(limit),
             pages: Math.ceil(total / Number(limit))
@@ -55,7 +59,8 @@ export class ModuleService {
         }
         const update = {
             $set: {
-                isDeleted : true
+                isDeleted : true,
+                isActive : false
             }
         }
         const options = {

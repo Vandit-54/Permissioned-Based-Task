@@ -32,7 +32,7 @@ export class ModuleController {
         }
     }
 
-    @httpGet('/getRoles')
+    @httpGet('/getModules')
     async getRoles(req:Request,res:Response,next:NextFunction):Promise<Response>{
         try {
             const query = req.query
@@ -46,15 +46,15 @@ export class ModuleController {
         } catch (error) {
             return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({ message: error.message });
         }   
-    }
+    }   
 
-    @httpPut('/update/:id')
+    @httpPut('/update')
     async updateRoles(req:Request,res:Response,next:NextFunction):Promise<Response>{
         try {
             const {name,description} = req.body;
-            const moduleId = req.query
+            const moduleId = req.query.id as string
             const moduleData = await moduleValidationSchema.validateAsync({name,description});
-            const module = await this.moduleService.updateModule(moduleData,moduleId);
+            const module = await this.moduleService.updateModule(moduleId,moduleData);  
             if (!module) {
                 throw new ApiError(HttpStatusCode.INTERNAL_SERVER_ERROR,Message.UPDATE_FAILURE)
             }
@@ -66,7 +66,7 @@ export class ModuleController {
         }
     }
 
-    @httpDelete('/delete/:id')
+    @httpDelete('/delete')
     async deleteRole(req:Request,res:Response,next:NextFunction):Promise<Response>{
         try {
             const moduleId = req.query.id as string;

@@ -31,4 +31,4 @@ const userPermissionSchema: Schema<IUserPermission> = new Schema ({
     },
 })
 
-export const userPermission = mongoose.model<IUserPermission>('UserPermission',userPermissionSchema)
+export const UserPermission = mongoose.model<IUserPermission>('UserPermission',userPermissionSchema)
