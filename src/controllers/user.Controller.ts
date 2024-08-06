@@ -14,6 +14,11 @@ import { Message,TYPES } from "@constant";
 export class UserController {
     constructor(@inject(TYPES.UserService) private userService: UserService) { }
 
+    @httpGet('/ping')
+    async ping(req: Request, res: Response): Promise<Response> {
+        return res.status(HttpStatusCode.OK).json({ message: 'User Controller is working' });
+    }
+
     @httpPost('/register')
     async createUser(req: Request, res: Response, next: NextFunction): Promise<Response> {
         try {
